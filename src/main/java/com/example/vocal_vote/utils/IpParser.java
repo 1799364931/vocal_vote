@@ -1,4 +1,4 @@
-package com.example.vocal_vote.units;
+package com.example.vocal_vote.utils;
 
 import jakarta.servlet.http.HttpServletRequest;
 
