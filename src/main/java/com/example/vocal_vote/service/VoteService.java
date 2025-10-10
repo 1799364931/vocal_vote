@@ -26,7 +26,7 @@ public class VoteService {
 
     public List<VoteOptionalDto> getVoteOptional(HttpServletRequest httpServletRequest){
         var ip = IpParser.parse(httpServletRequest);
-        if(!redisVoteUtil.IpExist(ip)){
+        if(redisVoteUtil.IpNotExist(ip)){
             redisVoteUtil.acquireLock(RedisVoteUtil.LOCK);
             redisVoteUtil.setIpVoteCount(ip,0);
             redisVoteUtil.setIpRandomList(ip);
@@ -47,7 +47,7 @@ public class VoteService {
 
     public boolean voteForOptionals(HttpServletRequest httpServletRequest, VoteCommitDto voteCommitDto){
         var ip = IpParser.parse(httpServletRequest);
-        if(redisVoteUtil.IpExist(ip)){
+        if(redisVoteUtil.IpNotExist(ip)){
             return false;
         }
         redisVoteUtil.acquireLock(RedisVoteUtil.LOCK);

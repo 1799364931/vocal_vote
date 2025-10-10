@@ -28,7 +28,7 @@ public class RedisVoteUtil {
     private static final String IP_VOTE_PREFIX = "vote:ip:";
 
     // IP 所对应的随机列表
-    private static final String RANDOM_LIST_PREFIX = "vote:random:ip";
+    private static final String RANDOM_LIST_PREFIX = "vote:random:ip:";
 
     private final StringRedisTemplate redisTemplate;
 
@@ -80,7 +80,7 @@ public class RedisVoteUtil {
         String key = optionId.toString();
 
         if (!redisTemplate.opsForHash().hasKey(VoteOptionalHash, key)) {
-            redisTemplate.opsForHash().put(VoteOptionalHash, key, 0L);
+            redisTemplate.opsForHash().put(VoteOptionalHash, key, "0");
         }
 
         if (isSyncing) {
@@ -103,15 +103,17 @@ public class RedisVoteUtil {
     /** 设置 IP 随机列表 **/
     public void setIpRandomList(String ip) {
         try{
-            redisTemplate.opsForValue().set(RANDOM_LIST_PREFIX + ip,objectMapper.writeValueAsString(new RandomList(287)) ,1,TimeUnit.DAYS);
+            String json = objectMapper.writeValueAsString(new RandomList(287));
+            redisTemplate.opsForValue().set(RANDOM_LIST_PREFIX + ip, json,1,TimeUnit.DAYS);
         }catch (Exception e){
             System.out.println("序列化失败");
         }
 
     }
 
-    public boolean IpExist(String ip){
-        return this.getIpVoteCount(ip) == -1;
+    public boolean IpNotExist(String ip){
+        String key = IP_VOTE_PREFIX + ip;
+        return !redisTemplate.hasKey(key);
     }
 
     public boolean OptionIdExist(Integer OptionId){
@@ -127,14 +129,16 @@ public class RedisVoteUtil {
     }
 
     // 每分钟同步一次
-    @Scheduled(fixedRate = 60*1000)
+    @Scheduled(fixedRate = 60000)
     public void syncVotesToDatabase() {
+
+        System.out.println("[INFO] 开始redis持久化同步");
         acquireLock(RedisVoteUtil.LOCK);
 
         isSyncing = true;
         Map<Object, Object> voteMap = redisTemplate.opsForHash().entries(VoteOptionalHash);
         voteMap.forEach((optionId, voteCount) -> {
-            songInfoRepository.incrementVoteCount(Integer.parseInt(optionId.toString()), (Integer) voteCount);
+            songInfoRepository.incrementVoteCount(Integer.parseInt(optionId.toString()), Integer.parseInt((String) voteCount));
         });
         for (Object field : voteMap.keySet()) {
             redisTemplate.opsForHash().put(VoteOptionalHash, field, "0");
@@ -151,5 +155,6 @@ public class RedisVoteUtil {
         }
 
         releaseLock(RedisVoteUtil.LOCK);
+        System.out.println("[INFO] 结束redis持久化同步");
     }
 }
