@@ -40,14 +40,14 @@ public class VoteService {
         for (int i = startIdx; i < Math.min(startIdx+10,randomList.getListSize()) ; i++) {
             var songInfo = songInfoRepository.findById(randomList.getRandomList().get(i));
             songInfo.ifPresent(info -> voteOptionalDtos.add(new VoteOptionalDto(info.getGameName(), info.getSongName(),
-                    info.getId(), info.getScore(),info.getVote_count())));
+                    info.getId(), info.getScore(),info.getVote_count(), info.getYear())));
         }
         return voteOptionalDtos;
     }
 
     public boolean voteForOptionals(HttpServletRequest httpServletRequest, VoteCommitDto voteCommitDto){
         var ip = IpParser.parse(httpServletRequest);
-        if(!redisVoteUtil.IpExist(ip)){
+        if(redisVoteUtil.IpExist(ip)){
             return false;
         }
         redisVoteUtil.acquireLock(RedisVoteUtil.LOCK);

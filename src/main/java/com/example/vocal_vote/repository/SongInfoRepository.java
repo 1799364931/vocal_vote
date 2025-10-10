@@ -10,6 +10,7 @@ public interface SongInfoRepository extends JpaRepository<SongInfo,Integer> {
         if(songInfo.isPresent()){
             songInfo.get().setVote_count(voteCount + songInfo.get().getVote_count());
             songInfo.get().setScore(voteCount + songInfo.get().getScore());
+            save(songInfo.get());
         }
     }
 }

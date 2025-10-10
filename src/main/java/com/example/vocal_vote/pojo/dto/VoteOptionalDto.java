@@ -11,4 +11,5 @@ public class VoteOptionalDto {
     Integer id;
     Integer score;
     Integer vote_count;
+    Integer year;
 }

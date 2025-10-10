@@ -28,4 +28,6 @@ public class SongInfo {
     private Integer score;
     @Column(name = "vote_count",nullable = false)
     private Integer vote_count;
+    @Column(name = "year",nullable = false)
+    private Integer year;
 }
