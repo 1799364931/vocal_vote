@@ -26,4 +26,6 @@ public class SongInfo {
     private String songName;
     @Column(name = "score",nullable = false)
     private Integer score;
+    @Column(name = "vote_count",nullable = false)
+    private Integer vote_count;
 }

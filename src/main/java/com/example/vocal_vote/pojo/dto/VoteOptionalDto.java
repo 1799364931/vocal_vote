@@ -10,4 +10,5 @@ public class VoteOptionalDto {
     String song_name;
     Integer id;
     Integer score;
+    Integer vote_count;
 }

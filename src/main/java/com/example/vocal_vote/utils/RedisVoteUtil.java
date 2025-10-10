@@ -1,16 +1,24 @@
 package com.example.vocal_vote.utils;
 
 import com.example.vocal_vote.pojo.RandomList;
+import com.example.vocal_vote.pojo.SongInfo;
+import com.example.vocal_vote.repository.SongInfoRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Component
 public class RedisVoteUtil {
+
+    public static final String LOCK = "REDIS_LOCK";
+
+    public static final Long LOCK_TIMEOUT_MS = 500L;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -18,11 +26,11 @@ public class RedisVoteUtil {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private SongInfoRepository songInfoRepository;
+
     // IP 投票次数键前缀
     private static final String IP_VOTE_PREFIX = "vote:ip:";
-
-    // 投票选项得票数键前缀
-    private static final String OPTION_VOTE_PREFIX = "vote:option:";
 
     // IP 所对应的随机列表
     private static final String RANDOM_LIST_PREFIX = "vote:random:ip";
@@ -55,15 +63,16 @@ public class RedisVoteUtil {
 
     /** 获取某个选项的得票数 */
     public int getOptionVoteCount(Integer optionId) {
-        String key = OPTION_VOTE_PREFIX + optionId;
-        String value = redisTemplate.opsForValue().get(key);
-        return value == null ? -1 : Integer.parseInt(value);
+        String value = (String) redisTemplate.opsForHash().get("SongVote", optionId.toString());
+        return value.equals("") ? -1 : Integer.parseInt(value);
     }
 
     /** 增加某个选项的得票数 */
-    public void incrementOptionVote(String optionId) {
-        String key = OPTION_VOTE_PREFIX + optionId;
-        redisTemplate.opsForValue().increment(key);
+    public void incrementOptionVote(Integer optionId) {
+        if(getOptionVoteCount(optionId) == -1){
+            this.setOptionVoteCount(optionId,0);
+        }
+        redisTemplate.opsForHash().increment("SongVote",optionId.toString(),1);
     }
 
     /** 设置 IP 投票次数（可用于初始化或重置） */
@@ -73,7 +82,7 @@ public class RedisVoteUtil {
 
     /** 设置选项得票数（可用于初始化或重置） */
     public void setOptionVoteCount(Integer optionId, int count) {
-        redisTemplate.opsForValue().set(OPTION_VOTE_PREFIX + optionId, String.valueOf(count));
+        redisTemplate.opsForHash().put("SongVote", optionId.toString(), count);
     }
 
     /** 设置 IP 随机列表 **/
@@ -94,4 +103,23 @@ public class RedisVoteUtil {
         return this.getOptionVoteCount(OptionId) != -1;
     }
 
+    public boolean acquireLock(String key) {
+        return redisTemplate.opsForValue().setIfAbsent(key, "locked", LOCK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    }
+
+    public void releaseLock(String key) {
+        redisTemplate.delete(key);
+    }
+
+    // 每十分钟同步一次
+    @Scheduled(fixedRate = 60*1000*10)
+    public void syncVotesToDatabase() {
+        acquireLock(RedisVoteUtil.LOCK);
+        Map<Object, Object> voteMap = redisTemplate.opsForHash().entries("SongVote");
+        voteMap.forEach((optionId, voteCount) -> {
+            songInfoRepository.incrementVoteCount(Integer.parseInt(optionId.toString()), (Integer) voteCount);
+        });
+        redisTemplate.delete("SongVote"); // 清空 Redis 中的缓存
+        releaseLock(RedisVoteUtil.LOCK);
+    }
 }

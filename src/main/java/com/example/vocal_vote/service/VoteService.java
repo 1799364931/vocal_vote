@@ -1,5 +1,6 @@
 package com.example.vocal_vote.service;
 
+import com.example.vocal_vote.pojo.dto.VoteCommitDto;
 import com.example.vocal_vote.pojo.dto.VoteOptionalDto;
 import com.example.vocal_vote.repository.SongInfoRepository;
 import com.example.vocal_vote.utils.IpParser;
@@ -26,8 +27,10 @@ public class VoteService {
     public List<VoteOptionalDto> getVoteOptional(HttpServletRequest httpServletRequest){
         var ip = IpParser.parse(httpServletRequest);
         if(!redisVoteUtil.IpExist(ip)){
+            redisVoteUtil.acquireLock(RedisVoteUtil.LOCK);
             redisVoteUtil.setIpVoteCount(ip,0);
             redisVoteUtil.setIpRandomList(ip);
+            redisVoteUtil.releaseLock(RedisVoteUtil.LOCK);
         }
         var voteCount = redisVoteUtil.getIpVoteCount(ip);
         // 选择起始歌
@@ -37,12 +40,24 @@ public class VoteService {
         for (int i = startIdx; i < Math.min(startIdx+10,randomList.getListSize()) ; i++) {
             var songInfo = songInfoRepository.findById(randomList.getRandomList().get(i));
             songInfo.ifPresent(info -> voteOptionalDtos.add(new VoteOptionalDto(info.getGameName(), info.getSongName(),
-                    info.getId(), info.getScore())));
+                    info.getId(), info.getScore(),info.getVote_count())));
         }
         return voteOptionalDtos;
     }
 
-//    public boolean voteForOptionals(HttpServletRequest httpServletRequest){
-//
-//    }
+    public boolean voteForOptionals(HttpServletRequest httpServletRequest, VoteCommitDto voteCommitDto){
+        var ip = IpParser.parse(httpServletRequest);
+        if(!redisVoteUtil.IpExist(ip)){
+            return false;
+        }
+        redisVoteUtil.acquireLock(RedisVoteUtil.LOCK);
+        redisVoteUtil.incrementIpVote(ip);
+        voteCommitDto.getVoteResult().forEach(voteEntry -> {
+            if(voteEntry.getValue() == 1){
+                redisVoteUtil.incrementOptionVote(voteEntry.getKey());
+            }
+        });
+        redisVoteUtil.releaseLock(RedisVoteUtil.LOCK);
+        return true;
+    }
 }
