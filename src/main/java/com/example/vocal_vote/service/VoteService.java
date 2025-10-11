@@ -34,10 +34,10 @@ public class VoteService {
         }
         var voteCount = redisVoteUtil.getIpVoteCount(ip);
         // 选择起始歌
-        var startIdx = voteCount * 10;
+        var startIdx = voteCount * 5;
         var randomList = redisVoteUtil.getIpRandomList(ip);
         List<VoteOptionalDto> voteOptionalDtos = new ArrayList<>();
-        for (int i = startIdx; i < Math.min(startIdx+10,randomList.getListSize()) ; i++) {
+        for (int i = startIdx; i < Math.min(startIdx+5,randomList.getListSize()) ; i++) {
             var songInfo = songInfoRepository.findById(randomList.getRandomList().get(i));
             songInfo.ifPresent(info -> voteOptionalDtos.add(new VoteOptionalDto(info.getGameName(), info.getSongName(),
                     info.getId(), info.getScore(),info.getVote_count(), info.getYear())));

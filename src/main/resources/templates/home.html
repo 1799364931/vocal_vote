@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>歌曲投票系统</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      overflow: hidden;
+    }
+
+    .container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .panel {
+      position: absolute;
+      width: 600px;
+      max-width: 90%;
+      background: white;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      padding: 20px;
+      transition: transform 0.8s ease, opacity 0.8s ease;
+    }
+
+    .panel.hidden {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .panel.left {
+      left: -100%;
+    }
+
+    .panel.right {
+      left: 100%;
+    }
+
+    .panel.center {
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 1;
+    }
+
+    .song-card {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      margin: 10px 0;
+      text-align: center;
+      background: #fafafa;
+    }
+
+    .song-card input {
+      margin-right: 10px;
+    }
+
+    #submitBtn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #submitBtn:hover {
+      background: #005fa3;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div id="panelCurrent" class="panel center"></div>
+  <div id="panelNext" class="panel right hidden"></div>
+</div>
+
+<script>
+  const API_GET = 'http://localhost:721/vote/api/get-vote-optionals';
+  const API_POST = 'http://localhost:721/vote/api/vote-for-optionals';
+  const N = 5;
+
+  async function fetchSongs(targetPanel) {
+    const res = await fetch(API_GET);
+    const data = await res.json();
+    const songs = data.data.filter(item => item && item.id);
+    const selected = songs.sort(() => 0.5 - Math.random()).slice(0, N);
+    renderSongs(selected, targetPanel);
+  }
+
+  function renderSongs(songs, panelId) {
+    const panel = document.getElementById(panelId);
+    panel.innerHTML = `<h3 style="text-align:center;">请选择你喜欢的曲目</h3>`;
+    songs.forEach(song => {
+      const div = document.createElement('div');
+      div.className = 'song-card';
+      div.innerHTML = `
+          <label>
+            <input type="checkbox" value="${song.id}">
+            <strong>${song.song_name}</strong><br>
+            <small>${song.game_name} (${song.year})</small><br>
+            得票：${song.vote_count} | 评分：${song.score}
+          </label>
+        `;
+      panel.appendChild(div);
+    });
+
+    const btn = document.createElement('button');
+    btn.id = 'submitBtn';
+    btn.textContent = '提交投票';
+    btn.onclick = () => submitVotes(panelId);
+    btn.style.display = 'block';
+    btn.style.margin = '20px auto'; // 上下间距 + 水平居中
+    btn.style.width = '50%';
+
+    panel.appendChild(btn);
+  }
+
+  async function submitVotes(panelId) {
+    const panel = document.getElementById(panelId);
+    const checked = Array.from(panel.querySelectorAll('input[type="checkbox"]:checked'));
+    if (checked.length === 0) {
+      alert('请至少选择一首曲目');
+      return;
+    }
+
+    const voteResult = checked.map(input => ({
+      key: parseInt(input.value),
+      value: 1
+    }));
+
+    const res = await fetch(API_POST, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'accept': '*/*'
+      },
+      body: JSON.stringify({ voteResult })
+    });
+
+    const result = await res.json();
+    if (result.code === 200) {
+      animateTransition();
+    } else {
+      alert('投票失败，请稍后重试');
+    }
+  }
+
+  function animateTransition() {
+    const current = document.getElementById('panelCurrent');
+    const next = document.getElementById('panelNext');
+
+    // 加载下一轮数据到 next 面板
+    fetchSongs('panelNext');
+
+    // 页面切换动画
+    current.classList.remove('center');
+    current.classList.add('left', 'hidden');
+
+    next.classList.remove('right', 'hidden');
+    next.classList.add('center');
+
+    // 等动画完成后交换 ID
+    setTimeout(() => {
+      current.className = 'panel right hidden';
+      next.id = 'panelCurrent';
+      current.id = 'panelNext';
+    }, 800);
+  }
+
+
+  fetchSongs('panelCurrent');
+</script>
+</body>
+</html>
