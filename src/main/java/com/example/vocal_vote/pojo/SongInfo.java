@@ -14,7 +14,11 @@ import org.hibernate.annotations.Check;
         @Index(name = "idx_year",columnList = "year"),
         @Index(name = "idx_game",columnList = "game_name")
     })
+/*
 
+
+
+ */
 public class SongInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -25,9 +29,11 @@ public class SongInfo {
     @Column(name = "song_name" ,nullable = false)
     private String songName;
     @Column(name = "score",nullable = false)
-    private Integer score;
+    private Double score;
     @Column(name = "vote_count",nullable = false)
     private Integer vote_count;
     @Column(name = "year",nullable = false)
     private Integer year;
+    @Column(name = "iframe_url")
+    private String iframeUrl;
 }

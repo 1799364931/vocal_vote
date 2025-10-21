@@ -63,7 +63,7 @@
       margin-right: 10px;
     }
 
-    #submitBtn {
+    .submitBtn {
       margin-top: 20px;
       padding: 10px 20px;
       background: #0078d4;
@@ -73,20 +73,24 @@
       cursor: pointer;
     }
 
-    #submitBtn:hover {
+    .submitBtn:hover {
       background: #005fa3;
     }
+
   </style>
 </head>
 <body>
+
 <div class="container">
   <div id="panelCurrent" class="panel center"></div>
   <div id="panelNext" class="panel right hidden"></div>
 </div>
 
 <script>
-  const API_GET = 'http://localhost:721/vote/api/get-vote-optionals';
-  const API_POST = 'http://localhost:721/vote/api/vote-for-optionals';
+  const HOST = '124.223.95.23'//'124.223.95.23';
+  const API_GET = 'http://'+HOST+':721/vote/api/get-vote-optionals';
+  const API_POST = 'http://'+HOST+':721/vote/api/vote-for-optionals';
+  const API_TOP = 'http://'+HOST+':721/vote/api/get-top-optionals';
   const N = 5;
 
   async function fetchSongs(targetPanel) {
@@ -100,37 +104,109 @@
   function renderSongs(songs, panelId) {
     const panel = document.getElementById(panelId);
     panel.innerHTML = `<h3 style="text-align:center;">请选择你喜欢的曲目</h3>`;
+
+    let isEnd = true;
     songs.forEach(song => {
+      isEnd = false;
       const div = document.createElement('div');
       div.className = 'song-card';
       div.innerHTML = `
-          <label>
-            <input type="checkbox" value="${song.id}">
-            <strong>${song.song_name}</strong><br>
-            <small>${song.game_name} (${song.year})</small><br>
-            得票：${song.vote_count} | 评分：${song.score}
-          </label>
-        `;
+      <label>
+        <input type="checkbox" value="${song.id}">
+        <strong>${song.song_name}</strong><br>
+        <small>${song.game_name} (${song.year})</small><br>
+        得票：${song.vote_count} | 评分：${song.score}
+      </label>
+    `;
       panel.appendChild(div);
     });
 
+    if (isEnd) {
+      panel.innerHTML = '';
+      const div = document.createElement('div');
+      div.innerHTML = `<h3 style="text-align:center;">🎉 本日所有曲目已投票结束</h3>`;
+      panel.appendChild(div);
+
+      // 获取排行榜数据
+      fetch(API_TOP, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': '*/*'
+        },
+        body: JSON.stringify({ topCount: 20 })
+      })
+      .then(res => res.json())
+      .then(result => {
+        if (result.code === 200 && Array.isArray(result.data)) {
+          const list = document.createElement('div');
+          list.innerHTML = `<h4 style="text-align:center;">🏆 投票排行榜 TOP ${result.data.length}</h4>`;
+          list.style = `
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  margin-top: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+`;
+
+          result.data.forEach((song, index) => {
+            const item = document.createElement('div');
+            item.style = `
+    border-bottom: 1px solid #eee;
+    padding: 10px;
+    background: #fffbe6;
+  `;
+            item.innerHTML = `
+    <strong>#${index + 1} ${song.song_name}</strong><br>
+    <small>🎮 ${song.game_name} (${song.year})</small><br>
+    🗳️ 得票：${song.vote_count} | ⭐ 评分：${song.score}
+  `;
+            list.appendChild(item);
+          });
+                  panel.appendChild(list);
+                } else {
+                  const error = document.createElement('div');
+                  error.innerHTML = `<p style="text-align:center;color:red;">无法加载排行榜数据</p>`;
+                  panel.appendChild(error);
+                }
+              })
+              .catch(err => {
+                const error = document.createElement('div');
+                error.innerHTML = `<p style="text-align:center;color:red;">请求失败，请稍后重试</p>`;
+                panel.appendChild(error);
+                console.error(err);
+              });
+      return;
+    }
+
+
+    // 清除旧按钮（如果存在）
+    const oldBtn = panel.querySelector('button');
+    if (oldBtn) panel.removeChild(oldBtn);
+
+    // 创建新按钮
     const btn = document.createElement('button');
-    btn.id = 'submitBtn';
     btn.textContent = '提交投票';
-    btn.onclick = () => submitVotes(panelId);
+    btn.onclick = () => submitVotes();
     btn.style.display = 'block';
-    btn.style.margin = '20px auto'; // 上下间距 + 水平居中
+    btn.style.margin = '20px auto';
     btn.style.width = '50%';
+    btn.className = 'submitBtn';
 
     panel.appendChild(btn);
   }
 
-  async function submitVotes(panelId) {
-    const panel = document.getElementById(panelId);
+  function getCurrentPanel() {
+    return document.querySelector('.panel.center');
+  }
+  async function submitVotes() {
+    const panel = getCurrentPanel();
     const checked = Array.from(panel.querySelectorAll('input[type="checkbox"]:checked'));
     if (checked.length === 0) {
-      alert('请至少选择一首曲目');
-      return;
+      const skip = confirm('没有选择任何选项，确认跳过？');
+      if (!skip) return;
     }
 
     const voteResult = checked.map(input => ({
@@ -179,6 +255,7 @@
 
 
   fetchSongs('panelCurrent');
+
 </script>
 </body>
 </html>

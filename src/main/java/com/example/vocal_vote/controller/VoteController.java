@@ -3,6 +3,7 @@ package com.example.vocal_vote.controller;
 import com.example.vocal_vote.pojo.ResponseMessage;
 import com.example.vocal_vote.pojo.dto.VoteCommitDto;
 import com.example.vocal_vote.pojo.dto.VoteOptionalDto;
+import com.example.vocal_vote.pojo.dto.VoteTopLimitDto;
 import com.example.vocal_vote.service.VoteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +32,12 @@ public class VoteController {
         return ResponseMessage.success(voteService.getVoteOptional(httpServletRequest),"success");
     }
 
+    @PostMapping("/api/get-top-optionals")
+    @Operation(summary = "获取最高投票的N个选项")
+    public ResponseMessage<List<VoteOptionalDto>> getVoteTopOptionals(@RequestBody VoteTopLimitDto voteTopLimitDto){
+        return ResponseMessage.success(voteService.getTopVoteOptionals(voteTopLimitDto),"success");
+    }
+
     @PostMapping("/api/vote-for-optionals")
     @Operation(summary = "提交投票结果")
     public ResponseMessage<Boolean> voteForOptionals(@RequestBody VoteCommitDto voteCommitDto, HttpServletRequest httpServletRequest){
@@ -39,5 +46,7 @@ public class VoteController {
         }
         return ResponseMessage.fail(Boolean.FALSE,"fail");
     }
+
+
 
 }

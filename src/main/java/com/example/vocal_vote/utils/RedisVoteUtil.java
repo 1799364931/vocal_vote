@@ -21,9 +21,11 @@ public class RedisVoteUtil {
 
     public static final Long LOCK_TIMEOUT_MS = 500L;
 
-    public static final String VoteOptionalHash = "voteOptional";
+    public static final String VoteOptionalHashCount = "voteOptionalCount";
 
-    public static final String VoteOptionalBufferHash = "voteOptional:buffer";
+    public static final String USER_ID_PREFIX = "user:id:";
+
+    public static final String VoteOptionHashScore = "voteOptionalScore";
 
     // IP 投票次数键前缀
     private static final String IP_VOTE_PREFIX = "vote:ip:";
@@ -70,37 +72,29 @@ public class RedisVoteUtil {
         redisTemplate.opsForValue().increment(key);
     }
 
-    /** 获取某个选项的得票数 */
-    public int getOptionVoteCount(Integer optionId) {
-        String value = (String) redisTemplate.opsForHash().get(VoteOptionalHash, optionId.toString());
-        return value.equals("") ? -1 : Integer.parseInt(value);
+    /** 增加某个选项的得票数 */
+    public void incrementOptionVoteScore(Integer optionId, Double value) {
+        String key = optionId.toString();
+        redisTemplate.opsForHash().putIfAbsent(VoteOptionHashScore,key, "0");
+        redisTemplate.opsForHash().increment(VoteOptionHashScore,key,value);
     }
 
-    /** 增加某个选项的得票数 */
-    public void incrementOptionVote(Integer optionId) {
+    public void incrementOptionVoteCount(Integer optionId) {
         String key = optionId.toString();
-        String bufferKey = currentBuffer.get().equals("A")?VoteOptionalHash:VoteOptionalBufferHash;
-        redisTemplate.opsForHash().putIfAbsent(bufferKey,key, "0");
-
-        redisTemplate.opsForHash().increment(bufferKey,key,1);
+        redisTemplate.opsForHash().putIfAbsent(VoteOptionalHashCount,key, "0");
+        redisTemplate.opsForHash().increment(VoteOptionalHashCount,key,1);
     }
 
     /** 设置 IP 投票次数（可用于初始化或重置） */
     public void setIpVoteCount(String ip, int count) {
-        redisTemplate.opsForValue().set(IP_VOTE_PREFIX + ip, String.valueOf(count),20, TimeUnit.HOURS);
-    }
-
-    /** 设置选项得票数（可用于初始化或重置） */
-    public void setOptionVoteCount(Integer optionId, int count) {
-        String bufferKey = currentBuffer.get().equals("A")?VoteOptionalHash:VoteOptionalBufferHash;
-        redisTemplate.opsForHash().put(bufferKey, optionId.toString() , count);
+        redisTemplate.opsForValue().set(IP_VOTE_PREFIX + ip, String.valueOf(count),12, TimeUnit.HOURS);
     }
 
     /** 设置 IP 随机列表 **/
     public void setIpRandomList(String ip) {
         try{
             String json = objectMapper.writeValueAsString(new RandomList(287));
-            redisTemplate.opsForValue().set(RANDOM_LIST_PREFIX + ip, json,20,TimeUnit.HOURS);
+            redisTemplate.opsForValue().set(RANDOM_LIST_PREFIX + ip, json,12,TimeUnit.HOURS);
         }catch (Exception e){
             System.out.println("序列化失败");
         }
@@ -119,23 +113,48 @@ public class RedisVoteUtil {
         redisTemplate.delete(key);
     }
 
+    public void addUser(String userId){
+        redisTemplate.opsForValue().setIfAbsent(USER_ID_PREFIX+userId,"1");
+    }
+
+    public boolean UserExist(String userId){
+        return redisTemplate.hasKey(USER_ID_PREFIX+userId);
+    }
+
     // 每分钟同步一次
     @Scheduled(fixedRate = 60000)
     public void syncVotesToDatabase() {
 
         System.out.println("[INFO] 开始redis持久化同步");
-        String processingBuffer = currentBuffer.get();
-        String bufferKey = currentBuffer.get().equals("A")?VoteOptionalHash:VoteOptionalBufferHash;
-        String nextBuffer = processingBuffer.equals("A") ? "B" : "A";
-        currentBuffer.set(nextBuffer); // 切换缓冲区
+//        String processingBuffer = currentBuffer.get();
+//        String bufferKey = currentBuffer.get().equals("A")?VoteOptionalHash: VoteOptionalBufferHashScore;
+//        String nextBuffer = processingBuffer.equals("A") ? "B" : "A";
+//        currentBuffer.set(nextBuffer);
+        acquireLock(RedisVoteUtil.LOCK);
+        // 切换缓冲区
+        // 等待一会后进行同步
+//        try {
+//            Thread.sleep(500); // 等待 0.5 秒，确保写入完成
+//        } catch (InterruptedException e) {
+//            Thread.currentThread().interrupt();
+//            System.err.println("[ERROR] 同步等待被中断");
+//            return;
+//        }
 
-        Map<Object, Object> voteMap = redisTemplate.opsForHash().entries(bufferKey);
-        voteMap.forEach((optionId, voteCount) -> {
-            songInfoRepository.incrementVoteCount(Integer.parseInt(optionId.toString()), Integer.parseInt((String) voteCount));
-        });
+        Map<Object, Object> voteMap = redisTemplate.opsForHash().entries(VoteOptionalHashCount);
+        Map<Object,Object> scoreMap = redisTemplate.opsForHash().entries(VoteOptionHashScore);
+
         for (Object field : voteMap.keySet()) {
-            redisTemplate.opsForHash().put(bufferKey, field, "0");
+            redisTemplate.opsForHash().put(VoteOptionalHashCount, field, "0");
+            redisTemplate.opsForHash().put(VoteOptionHashScore, field, "0");
         }
+
+        releaseLock(RedisVoteUtil.LOCK);
+
+        voteMap.forEach((optionId, voteCount) -> {
+            songInfoRepository.incrementVoteCount(Integer.parseInt(optionId.toString()),Double.parseDouble((String)scoreMap.get(optionId)) ,Integer.parseInt((String) voteCount));
+        });
+
         System.out.println("[INFO] 结束redis持久化同步");
     }
 }

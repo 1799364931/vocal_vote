@@ -9,6 +9,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class MVCController {
 
     @GetMapping("/")
-    public String ShowHomePage(){return "home";}
+    public String ShowHomePage(){return "rankVote";}
 
 }

@@ -2,11 +2,13 @@ package com.example.vocal_vote.service;
 
 import com.example.vocal_vote.pojo.dto.VoteCommitDto;
 import com.example.vocal_vote.pojo.dto.VoteOptionalDto;
+import com.example.vocal_vote.pojo.dto.VoteTopLimitDto;
 import com.example.vocal_vote.repository.SongInfoRepository;
 import com.example.vocal_vote.utils.IpParser;
 import com.example.vocal_vote.utils.RedisVoteUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -40,7 +42,7 @@ public class VoteService {
         for (int i = startIdx; i < Math.min(startIdx+5,randomList.getListSize()) ; i++) {
             var songInfo = songInfoRepository.findById(randomList.getRandomList().get(i));
             songInfo.ifPresent(info -> voteOptionalDtos.add(new VoteOptionalDto(info.getGameName(), info.getSongName(),
-                    info.getId(), info.getScore(),info.getVote_count(), info.getYear())));
+                    info.getId(), info.getScore(),info.getVote_count(), info.getYear(),info.getIframeUrl())));
         }
         return voteOptionalDtos;
     }
@@ -54,10 +56,19 @@ public class VoteService {
         redisVoteUtil.incrementIpVote(ip);
         voteCommitDto.getVoteResult().forEach(voteEntry -> {
             if(voteEntry.getValue() == 1){
-                redisVoteUtil.incrementOptionVote(voteEntry.getKey());
+                redisVoteUtil.incrementOptionVoteScore(voteEntry.getKey(),1.0);
             }
         });
         redisVoteUtil.releaseLock(RedisVoteUtil.LOCK);
         return true;
+    }
+
+    public List<VoteOptionalDto> getTopVoteOptionals(VoteTopLimitDto voteTopLimitDto){
+        var queryRes = songInfoRepository.findAll(Sort.by("score").descending());
+        List<VoteOptionalDto> voteOptionalDtoList =new ArrayList<>();
+        for(int i = 0; i<voteTopLimitDto.getTopCount();i++){
+            voteOptionalDtoList.add(new VoteOptionalDto(queryRes.get(i)));
+        }
+        return voteOptionalDtoList;
     }
 }
