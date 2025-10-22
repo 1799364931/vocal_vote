@@ -1,69 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <title><!DOCTYPE html>
-      <html lang="zh">
-      <head>
-      <meta charset="UTF-8" />
-      <title>歌曲投票排名</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f0f2f5;
-    }
-    header {
-      background: #2c3e50;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-    }
-    .container {
-      display: flex;
-      padding: 1rem;
-    }
-    .song-list, .vote-list {
-      flex: 1;
-      margin: 0 1rem;
-    }
-    .song-card {
-      background: white;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .song-card iframe {
-      width: 100%;
-      height: 86px;
-      margin-top: 0.5rem;
-    }
-    .song-card button {
-      margin-top: 0.5rem;
-    }
-    .vote-list h3 {
-      margin-top: 0;
-    }
-    .vote-item {
-      background: #fff;
-      padding: 0.5rem;
-      margin-bottom: 0.5rem;
-      border: 1px solid #ccc;
-      cursor: move;
-    }
-    #submit-btn {
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <title>歌曲投票排名</title>
+  <link rel="stylesheet" href="/css/css.css">
 </head>
 <body>
 <header>
   <h1>🎵 歌曲投票排名</h1>
-  <p>从下方选择你最喜欢的 20 首歌曲并排序</p>
+  <p>从下方选择你喜欢的歌曲并排序（最多20首，至少1首）</p>
+  <button id="rules-btn">📋 投票规则</button>
 </header>
 
 <div class="container">
@@ -78,192 +24,57 @@
   </div>
 </div>
 
-<script>
-  const API_URL = "http://localhost:721/rank-vote/api/get-vote-optionals"; // 替换为你的真实接口地址
-  const voteList = [];
-  const songListEl = document.getElementById("songList");
-  const voteListEl = document.getElementById("voteList");
-  const voteCountEl = document.getElementById("voteCount");
-  const submitBtn = document.getElementById("submit-btn");
+<!-- 规则弹窗 -->
+<div id="rules-modal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>🎵 投票规则说明</h2>
+    <div id="rules-content">
+      <div class="rule-section">
+        <h3>📊 计分规则</h3>
+        <div class="rule-item">
+          <strong>1. 排名权重分配</strong>
+          <p>您投出的每首歌都会根据排名获得不同权重：</p>
+          <ul>
+            <li>第1名 → 权重最高</li>
+            <li>第2名 → 权重次高</li>
+            <li>...依次递减</li>
+            <li>最后一名 → 权重最低</li>
+          </ul>
+        </div>
 
-  async function fetchSongs() {
-    try {
-      const res = await fetch(API_URL);
-      const json = await res.json();
-      if (json.code === 200) {
-        allSongs = json.data;
-        renderPagination();
-        renderSongsPage(currentPage);
-      } else {
-        songListEl.innerHTML = "<p>获取歌曲失败</p>";
-      }
-    } catch (err) {
-      songListEl.innerHTML = "<p>网络错误</p>";
-    }
-  }
+        <div class="rule-item">
+          <strong>2. 投票数量影响</strong>
+          <p>投票数量直接影响您的投票效力：</p>
+          <ul>
+            <li>投满20首 → 100% 投票效力</li>
+            <li>投10首 → 50% 投票效力</li>
+            <li>投5首 → 25% 投票效力</li>
+            <li>投1首 → 5% 投票效力</li>
+          </ul>
+          <p class="tip">💡 建议：投满20首以获得最大投票影响力</p>
+        </div>
 
-  const PAGE_SIZE = 3;
-  let currentPage = 1;
-  let allSongs = [];
+        <div class="rule-item">
+          <strong>3. 最终得分计算</strong>
+          <p>歌曲最终得分 = 所有用户贡献分数的总和 × 100 后保留一位小数</p>
+          <p>每个用户的贡献分数 = 投票效力 × 排名权重 </p>
+        </div>
+      </div>
 
-  function renderSongsPage(page) {
-    songListEl.innerHTML = "";
-    const start = (page - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    const pageSongs = allSongs.slice(start, end);
+      <div class="rule-section">
+        <h3>🎯 投票建议</h3>
+        <ul>
+          <li>✅ 尽量投满20首歌曲</li>
+          <li>✅ 认真排序，第1名最重要</li>
+          <li>✅ 投票后无法修改，请确认后再提交</li>
+          <li>❌ 只投1-2首歌会影响投票效力</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
 
-    pageSongs.forEach(song => {
-      const card = document.createElement("div");
-      card.className = "song-card";
-
-      const title = document.createElement("strong");
-      title.textContent = `${song.song_name}`;
-
-      const info = document.createElement("div");
-      info.innerHTML = `${song.game_name} (${song.year})<br/>得分：${parseFloat(song.score).toFixed(2)}，投票数：${song.vote_count}`;
-
-      const iframe = document.createElement("iframe");
-      iframe.src = `http://music.163.com/outchain/player?type=2&id=${song.iframe_url}&auto=0&height=66`;
-      iframe.frameBorder = "0";
-
-      const btn = document.createElement("button");
-      btn.textContent = voteList.includes(song.id) ? "已加入" : "加入投票";
-      btn.disabled = voteList.includes(song.id);
-      btn.setAttribute("data-id", song.id);
-      btn.addEventListener("click", (e) => {
-        if (voteList.length < 20 && !voteList.includes(song.id)) {
-          voteList.push(song.id);
-          renderVotes(allSongs);
-          btn.disabled = true;
-          btn.textContent = "已加入";
-        }
-      });
-
-      card.appendChild(title);
-      card.appendChild(info);
-      card.appendChild(iframe);
-      card.appendChild(btn);
-      songListEl.appendChild(card);
-    });
-
-
-    renderPagination(); // 每次翻页都更新分页按钮
-  }
-
-  function renderPagination() {
-    const totalPages = Math.ceil(allSongs.length / PAGE_SIZE);
-    const paginationEl = document.createElement("div");
-    paginationEl.style.textAlign = "center";
-    paginationEl.style.marginTop = "1rem";
-
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "上一页";
-    prevBtn.disabled = currentPage === 1;
-    prevBtn.style.marginRight = "8px";
-    prevBtn.addEventListener("click", () => {
-      if (currentPage > 1) {
-        currentPage--;
-        renderSongsPage(currentPage);
-      }
-    });
-
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "下一页";
-    nextBtn.disabled = currentPage === totalPages;
-    nextBtn.style.marginLeft = "8px";
-    nextBtn.addEventListener("click", () => {
-      if (currentPage < totalPages) {
-        currentPage++;
-        renderSongsPage(currentPage);
-      }
-    });
-
-    const pageInfo = document.createElement("span");
-    pageInfo.textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
-
-    paginationEl.appendChild(prevBtn);
-    paginationEl.appendChild(pageInfo);
-    paginationEl.appendChild(nextBtn);
-
-    songListEl.appendChild(paginationEl);
-  }
-
-  function renderVotes(allSongs) {
-    voteListEl.innerHTML = "";
-    voteList.forEach((id, index) => {
-      const song = allSongs.find(s => s.id === id);
-      if (!song) return;
-
-      const item = document.createElement("div");
-      item.className = "vote-item";
-      item.draggable = true;
-      item.dataset.index = index;
-
-      const text = document.createElement("span");
-      text.textContent = `${index + 1}. ${song.song_name} - ${song.game_name}`;
-
-      const removeBtn = document.createElement("button");
-      removeBtn.textContent = "❌ 撤销";
-      removeBtn.style.marginLeft = "10px";
-      removeBtn.addEventListener("click", () => {
-        voteList.splice(index, 1);
-        renderVotes(allSongs);
-        updateSongButtons(); // 更新左侧按钮状态
-      });
-
-      item.appendChild(text);
-      item.appendChild(removeBtn);
-      voteListEl.appendChild(item);
-    });
-
-    voteCountEl.textContent = voteList.length;
-    submitBtn.disabled = voteList.length !== 20;
-  }
-
-  function updateSongButtons() {
-    document.querySelectorAll(".song-card button").forEach(btn => {
-      const id = parseInt(btn.getAttribute("data-id"));
-      if (voteList.includes(id)) {
-        btn.disabled = true;
-        btn.textContent = "已加入";
-      } else {
-        btn.disabled = false;
-        btn.textContent = "加入投票";
-      }
-    });
-  }
-
-
-
-
-  // 拖拽排序
-  let dragSrcIndex = null;
-  voteListEl.addEventListener("dragstart", (e) => {
-    dragSrcIndex = +e.target.dataset.index;
-  });
-  voteListEl.addEventListener("dragover", (e) => e.preventDefault());
-  voteListEl.addEventListener("drop", (e) => {
-    const targetIndex = +e.target.dataset.index;
-    if (dragSrcIndex !== null && targetIndex !== dragSrcIndex) {
-      const moved = voteList.splice(dragSrcIndex, 1)[0];
-      voteList.splice(targetIndex, 0, moved);
-      renderVotes(allSongs); // 修复这里
-    }
-    dragSrcIndex = null;
-  });
-
-
-  submitBtn.addEventListener("click", () => {
-    alert("投票已提交！\n你的排名是：\n" + voteList.map((id, i) => `${i + 1}. ID: ${id}`).join("\n"));
-  });
-
-  fetchSongs();
-</script>
-</body>
-</html>
-</title>
-</head>
-<body>
-
+<script src="/js/script.js"></script>
 </body>
 </html>

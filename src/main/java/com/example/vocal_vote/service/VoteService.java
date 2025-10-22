@@ -30,7 +30,7 @@ public class VoteService {
         var ip = IpParser.parse(httpServletRequest);
         if(redisVoteUtil.IpNotExist(ip)){
             redisVoteUtil.acquireLock(RedisVoteUtil.LOCK);
-            redisVoteUtil.setIpVoteCount(ip,0);
+            redisVoteUtil.setIpVoteCount(ip,0,12L);
             redisVoteUtil.setIpRandomList(ip);
             redisVoteUtil.releaseLock(RedisVoteUtil.LOCK);
         }

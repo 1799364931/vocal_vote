@@ -86,8 +86,8 @@ public class RedisVoteUtil {
     }
 
     /** 设置 IP 投票次数（可用于初始化或重置） */
-    public void setIpVoteCount(String ip, int count) {
-        redisTemplate.opsForValue().set(IP_VOTE_PREFIX + ip, String.valueOf(count),12, TimeUnit.HOURS);
+    public void setIpVoteCount(String ip, int count ,Long timeout) {
+        redisTemplate.opsForValue().set(IP_VOTE_PREFIX + ip, String.valueOf(count),timeout, TimeUnit.HOURS);
     }
 
     /** 设置 IP 随机列表 **/

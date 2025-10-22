@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>歌曲排行榜</title>
+  <style>
+    :root {
+      --primary-color: #1a2a6c;
+      --secondary-color: #b21f1f;
+      --accent-color: #fdbb2d;
+      --light-bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-dark: #333333;
+      --text-light: #666666;
+      --border-color: #e0e0e0;
+      --success-color: #27ae60;
+      --danger-color: #e74c3c;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color), var(--accent-color));
+      color: var(--text-dark);
+      min-height: 100vh;
+      padding: 15px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 25px;
+      color: white;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      padding: 15px;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: clamp(1rem, 2.5vw, 1.2rem);
+      opacity: 0.9;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .count-selector {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .count-selector select {
+      padding: 10px 15px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      background: white;
+      font-size: 1rem;
+      cursor: pointer;
+      min-width: 120px;
+    }
+
+    .refresh-btn {
+      padding: 10px 20px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.3s;
+      white-space: nowrap;
+    }
+
+    .refresh-btn:hover {
+      background: #2a3a9c;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .stat-card h3 {
+      color: var(--text-light);
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+
+    .stat-card .value {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    .song-list-container {
+      background: var(--card-bg);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .song-header {
+      display: grid;
+      grid-template-columns: 80px minmax(200px, 1fr) 120px 120px 100px;
+      gap: 15px;
+      padding: 15px 20px;
+      background: var(--primary-color);
+      color: white;
+      font-weight: bold;
+    }
+
+    .song-item {
+      display: grid;
+      grid-template-columns: 80px minmax(200px, 1fr) 120px 120px 100px;
+      gap: 15px;
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.3s;
+    }
+
+    .song-item:hover {
+      background: #f9f9f9;
+    }
+
+    .song-item:last-child {
+      border-bottom: none;
+    }
+
+    .rank {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+
+    .rank-1, .rank-2, .rank-3 {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      margin: 0 auto;
+    }
+
+    .rank-1 {
+      background: #ffd700; /* 金色 */
+    }
+
+    .rank-2 {
+      background: #c0c0c0; /* 银色 */
+    }
+
+    .rank-3 {
+      background: #cd7f32; /* 铜色 */
+    }
+
+    .song-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .song-name {
+      font-weight: bold;
+      font-size: 1.1rem;
+      margin-bottom: 5px;
+      word-break: break-word;
+    }
+
+    .game-info {
+      color: var(--text-light);
+      font-size: 0.9rem;
+    }
+
+    .score, .vote-count, .year {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .score {
+      color: var(--danger-color);
+    }
+
+    .vote-count {
+      color: var(--primary-color);
+    }
+
+    .year {
+      color: var(--success-color);
+    }
+
+    .empty-state, .loading {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-light);
+    }
+
+    .error {
+      padding: 20px;
+      text-align: center;
+      color: var(--danger-color);
+      background: #ffeaea;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 1024px) {
+      .song-header, .song-item {
+        grid-template-columns: 70px minmax(150px, 1fr) 100px 100px 90px;
+        gap: 10px;
+        padding: 12px 15px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .count-selector {
+        justify-content: space-between;
+      }
+
+      .song-header {
+        grid-template-columns: 60px 1fr 80px;
+        padding: 12px 10px;
+      }
+
+      .song-item {
+        grid-template-columns: 60px 1fr 80px;
+        padding: 12px 10px;
+      }
+
+      .score, .vote-count, .year {
+        display: none;
+      }
+
+      .song-header div:nth-child(3),
+      .song-header div:nth-child(4),
+      .song-header div:nth-child(5) {
+        display: none;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+
+      .song-header, .song-item {
+        grid-template-columns: 50px 1fr;
+        gap: 8px;
+        padding: 10px 8px;
+      }
+
+      .rank {
+        font-size: 1rem;
+      }
+
+      .rank-1, .rank-2, .rank-3 {
+        width: 35px;
+        height: 35px;
+      }
+
+      .song-name {
+        font-size: 1rem;
+      }
+
+      .game-info {
+        font-size: 0.85rem;
+      }
+
+      .stat-card {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🎵 歌曲排行榜</h1>
+    <p class="subtitle">基于用户投票的歌曲排名</p>
+  </header>
+
+  <div class="controls">
+    <div class="count-selector">
+      <label for="countSelect">显示数量:</label>
+      <select id="countSelect">
+        <option value="10">前10名</option>
+        <option value="20">前20名</option>
+        <option value="51">前51名</option>
+      </select>
+    </div>
+    <button id="refreshBtn" class="refresh-btn">🔄 刷新数据</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <h3>显示歌曲数量</h3>
+      <div class="value" id="totalSongs">--</div>
+    </div>
+    <div class="stat-card">
+      <h3>最高得分</h3>
+      <div class="value" id="maxScore">--</div>
+    </div>
+    <div class="stat-card">
+      <h3>平均投票数</h3>
+      <div class="value" id="avgVotes">--</div>
+    </div>
+  </div>
+
+  <div id="errorContainer" style="display: none;"></div>
+
+  <div class="song-list-container">
+    <div class="song-header">
+      <div>排名</div>
+      <div>歌曲信息</div>
+      <div>得分</div>
+      <div>投票人数</div>
+      <div>年份</div>
+    </div>
+
+    <div id="songsContainer">
+      <div class="loading">正在加载歌曲数据...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // API配置
+  const API_BASE_URL = 'http://localhost:721/rank-vote/api';
+  const TOP_LIST_API = `${API_BASE_URL}/get-top-list`;
+
+  // DOM元素
+  const songsContainer = document.getElementById('songsContainer');
+  const countSelect = document.getElementById('countSelect');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const errorContainer = document.getElementById('errorContainer');
+  const totalSongsEl = document.getElementById('totalSongs');
+  const maxScoreEl = document.getElementById('maxScore');
+  const avgVotesEl = document.getElementById('avgVotes');
+
+  // 初始化
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchSongs();
+
+    // 添加事件监听器
+    refreshBtn.addEventListener('click', fetchSongs);
+    countSelect.addEventListener('change', fetchSongs);
+  });
+
+  // 获取歌曲数据
+  async function fetchSongs() {
+    const count = countSelect.value;
+
+    try {
+      showLoading();
+      hideError();
+
+      const response = await fetch(`${TOP_LIST_API}?n=${count}`);
+      const result = await response.json();
+
+      if (result.code === 200) {
+        renderSongs(result.data);
+        updateStats(result.data);
+      } else {
+        throw new Error(result.message || '获取数据失败');
+      }
+    } catch (error) {
+      console.error('Error fetching songs:', error);
+      showError(`获取数据失败: ${error.message}`);
+    }
+  }
+
+  // 渲染歌曲列表
+  function renderSongs(songs) {
+    if (!songs || songs.length === 0) {
+      songsContainer.innerHTML = '<div class="empty-state">暂无歌曲数据</div>';
+      return;
+    }
+
+    songsContainer.innerHTML = '';
+
+    songs.forEach((song, index) => {
+      const songItem = document.createElement('div');
+      songItem.className = 'song-item';
+
+      // 排名显示
+      const rank = index + 1;
+      let rankHTML;
+      if (rank <= 3) {
+        rankHTML = `<div class="rank"><div class="rank-${rank}">${rank}</div></div>`;
+      } else {
+        rankHTML = `<div class="rank">${rank}</div>`;
+      }
+
+      // 格式化得分：保留三位小数后乘以100
+      const formattedScore = ((parseFloat(song.score)*100).toFixed(1));
+
+      songItem.innerHTML = `
+        ${rankHTML}
+        <div class="song-info">
+          <div class="song-name">${song.song_name}</div>
+          <div class="game-info">${song.game_name}</div>
+        </div>
+        <div class="score">${formattedScore}</div>
+        <div class="vote-count">${song.vote_count}</div>
+        <div class="year">${song.year}</div>
+      `;
+
+      songsContainer.appendChild(songItem);
+    });
+  }
+
+  // 更新统计数据
+  function updateStats(songs) {
+    if (!songs || songs.length === 0) {
+      totalSongsEl.textContent = '--';
+      maxScoreEl.textContent = '--';
+      avgVotesEl.textContent = '--';
+      return;
+    }
+
+    totalSongsEl.textContent = songs.length;
+
+    // 计算最高得分
+    const maxScore = Math.max(...songs.map(song => parseFloat(song.score) * 100));
+    maxScoreEl.textContent = maxScore.toFixed(1);
+
+    // 计算平均投票数
+    const totalVotes = songs.reduce((sum, song) => sum + song.vote_count, 0);
+    const avgVotes = totalVotes / songs.length;
+    avgVotesEl.textContent = avgVotes.toFixed(1);
+  }
+
+  // 显示加载状态
+  function showLoading() {
+    songsContainer.innerHTML = '<div class="loading">正在加载歌曲数据...</div>';
+  }
+
+  // 显示错误信息
+  function showError(message) {
+    errorContainer.style.display = 'block';
+    errorContainer.innerHTML = `
+      <div class="error">
+        <h3>加载失败</h3>
+        <p>${message}</p>
+        <p>请检查网络连接或稍后重试</p>
+      </div>
+    `;
+    songsContainer.innerHTML = '<div class="empty-state">加载失败，无法显示数据</div>';
+  }
+
+  // 隐藏错误信息
+  function hideError() {
+    errorContainer.style.display = 'none';
+  }
+</script>
+</body>
+</html>

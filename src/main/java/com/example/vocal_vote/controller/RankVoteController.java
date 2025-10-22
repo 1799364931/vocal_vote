@@ -1,6 +1,5 @@
 package com.example.vocal_vote.controller;
 
-
 import com.example.vocal_vote.pojo.ResponseMessage;
 import com.example.vocal_vote.pojo.dto.RankVoteCommitDto;
 import com.example.vocal_vote.pojo.dto.VoteOptionalDto;
@@ -32,10 +31,15 @@ public class RankVoteController {
 
     @PostMapping("/api/commit-rank-vote")
     @Operation(summary = "提交排名投票")
-    public ResponseMessage<Boolean> commitVote(@RequestBody RankVoteCommitDto rankVoteCommitDto){
-        if(rankVoteService.rankVoteCommit(rankVoteCommitDto)){
+    public ResponseMessage<Boolean> commitVote(@RequestBody RankVoteCommitDto rankVoteCommitDto,HttpServletRequest httpServletRequest){
+        if(rankVoteService.rankVoteCommit(rankVoteCommitDto,httpServletRequest)){
             return ResponseMessage.success(Boolean.TRUE,"success");
         }
         return ResponseMessage.fail(Boolean.FALSE,"fail");
+    }
+
+    @GetMapping("/api/get-top-list")
+    public ResponseMessage<List<VoteOptionalDto>> getTopLimitOptionals(@RequestParam("n") Integer limit){
+        return ResponseMessage.success(rankVoteService.getRankVoteTopLimitOptionals(limit),"success");
     }
 }
