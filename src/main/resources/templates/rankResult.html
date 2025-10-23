@@ -336,7 +336,7 @@
       <select id="countSelect">
         <option value="10">前10名</option>
         <option value="20">前20名</option>
-        <option value="51">前51名</option>
+        <option value="50">前50名</option>
       </select>
     </div>
     <button id="refreshBtn" class="refresh-btn">🔄 刷新数据</button>
@@ -376,7 +376,7 @@
 
 <script>
   // API配置
-  const API_BASE_URL = 'http://localhost:721/rank-vote/api';
+  const API_BASE_URL = 'http://124.223.95.23:721/rank-vote/api';
   const TOP_LIST_API = `${API_BASE_URL}/get-top-list`;
 
   // DOM元素
@@ -443,7 +443,7 @@
       }
 
       // 格式化得分：保留三位小数后乘以100
-      const formattedScore = ((parseFloat(song.score)*100).toFixed(1));
+      const formattedScore = ((parseFloat(song.score)*100).toFixed(2));
 
       songItem.innerHTML = `
         ${rankHTML}
@@ -473,7 +473,7 @@
 
     // 计算最高得分
     const maxScore = Math.max(...songs.map(song => parseFloat(song.score) * 100));
-    maxScoreEl.textContent = maxScore.toFixed(1);
+    maxScoreEl.textContent = maxScore.toFixed(2);
 
     // 计算平均投票数
     const totalVotes = songs.reduce((sum, song) => sum + song.vote_count, 0);

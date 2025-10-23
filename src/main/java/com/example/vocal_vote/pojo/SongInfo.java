@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Check;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,7 +17,6 @@ import org.hibernate.annotations.Check;
         @Index(name = "idx_game",columnList = "game_name")
     })
 /*
-
 
 
  */
@@ -36,4 +37,7 @@ public class SongInfo {
     private Integer year;
     @Column(name = "iframe_url")
     private String iframeUrl;
+
+    @OneToMany(mappedBy = "song")
+    private List<UserVote> votedBy;
 }

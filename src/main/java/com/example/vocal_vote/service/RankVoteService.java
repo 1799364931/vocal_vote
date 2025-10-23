@@ -1,11 +1,15 @@
 package com.example.vocal_vote.service;
 
 
+import com.example.vocal_vote.pojo.SongInfo;
 import com.example.vocal_vote.pojo.User;
+import com.example.vocal_vote.pojo.UserVote;
+import com.example.vocal_vote.pojo.UserVoteId;
 import com.example.vocal_vote.pojo.dto.RankVoteCommitDto;
 import com.example.vocal_vote.pojo.dto.VoteOptionalDto;
 import com.example.vocal_vote.repository.SongInfoRepository;
 import com.example.vocal_vote.repository.UserRepository;
+import com.example.vocal_vote.repository.UserVoteRepository;
 import com.example.vocal_vote.utils.IpParser;
 import com.example.vocal_vote.utils.RedisVoteUtil;
 import com.example.vocal_vote.utils.ScoreCalculater;
@@ -24,13 +28,16 @@ public class RankVoteService {
     private final RedisVoteUtil redisVoteUtil;
     private final ScoreCalculater scoreCalculater;
     private final UserRepository userRepository;
+    private final UserVoteRepository userVoteRepository;
+
 
     @Autowired
-    public RankVoteService(UserRepository userRepository,SongInfoRepository songInfoRepository,RedisVoteUtil redisVoteUtil, ScoreCalculater scoreCalculater){
+    public RankVoteService(UserVoteRepository userVoteRepository,UserRepository userRepository,SongInfoRepository songInfoRepository,RedisVoteUtil redisVoteUtil, ScoreCalculater scoreCalculater){
         this.songInfoRepository = songInfoRepository;
         this.redisVoteUtil = redisVoteUtil;
         this.scoreCalculater = scoreCalculater;
         this.userRepository = userRepository;
+        this.userVoteRepository = userVoteRepository;
     }
 
     public List<VoteOptionalDto> getVoteOptional(){
@@ -46,8 +53,15 @@ public class RankVoteService {
     public Boolean rankVoteCommit(RankVoteCommitDto rankVoteCommitDto, HttpServletRequest httpServletRequest){
         // 加入用户到缓冲池
         // 如果这个用户已经投过票了
+        if(userRepository.findByNickName(rankVoteCommitDto.getUserId()).isPresent()){
+            return Boolean.FALSE;
+        }
+
         String ip = IpParser.parse(httpServletRequest);
-        redisVoteUtil.acquireLock(RedisVoteUtil.LOCK);
+
+        if(!redisVoteUtil.acquireLock(RedisVoteUtil.LOCK)){
+            return Boolean.FALSE;
+        }
         if(!redisVoteUtil.IpNotExist(ip)){
             redisVoteUtil.releaseLock(RedisVoteUtil.LOCK);
             return Boolean.FALSE;
@@ -68,19 +82,30 @@ public class RankVoteService {
 
         });
 
-
-        redisVoteUtil.releaseLock(RedisVoteUtil.LOCK);
         //投票后强制进行一次同步
         redisVoteUtil.syncVotesToDatabase();
 
+        redisVoteUtil.releaseLock(RedisVoteUtil.LOCK);
+
+
         //默认该用户不存在
         User user = new User();
-        user.setVotedSongs(new ArrayList<>());
-        scores.forEach((songId,score) ->{
-            user.getVotedSongs().add(songInfoRepository.findById(songId).get());
-        });
         user.setNickName(rankVoteCommitDto.getUserId());
-        userRepository.save(user);
+        userRepository.save(user); // 先保存用户，确保有 ID
+
+        List<UserVote> voteList = new ArrayList<>();
+
+        rankVoteCommitDto.getRankVoteDto().getSongIdRanks().forEach( rankVoteEntry -> {
+            SongInfo song = songInfoRepository.findById(rankVoteEntry.getSongId()).orElseThrow();
+            UserVote vote = new UserVote();
+            vote.setUser(user);
+            vote.setSong(song);
+            vote.setRank(rankVoteEntry.getRank());
+            vote.setId(new UserVoteId(rankVoteEntry.getSongId(),user.getId()));
+            voteList.add(vote);
+        });
+
+        userVoteRepository.saveAll(voteList); // 保存所有投票记录
 
         return Boolean.TRUE;
     }

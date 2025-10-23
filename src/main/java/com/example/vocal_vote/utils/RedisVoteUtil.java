@@ -5,10 +5,12 @@ import com.example.vocal_vote.repository.SongInfoRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -105,12 +107,27 @@ public class RedisVoteUtil {
         return !redisTemplate.hasKey(key);
     }
 
-    public void acquireLock(String key) {
-        redisTemplate.opsForValue().setIfAbsent(key, "locked", LOCK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    public boolean acquireLock(String key) {
+        long timeoutMillis = 5000; // 最多等待2秒
+        long start = System.currentTimeMillis();
+
+        while (System.currentTimeMillis() - start < timeoutMillis) {
+            Boolean success = redisTemplate.opsForValue().setIfAbsent(key, "locked", LOCK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            if (Boolean.TRUE.equals(success)) {
+                return true; // 获取锁成功
+            }
+            try {
+                Thread.sleep(50); // 等待一会再重试
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false; // 超时未获取锁
     }
 
     public void releaseLock(String key) {
-        redisTemplate.delete(key);
+        redisTemplate.delete(key); // 直接删除锁
     }
 
     public void addUser(String userId){
@@ -122,7 +139,7 @@ public class RedisVoteUtil {
     }
 
     // 每分钟同步一次
-    @Scheduled(fixedRate = 60000)
+    // @Scheduled(fixedRate = 60000)
     public void syncVotesToDatabase() {
 
         System.out.println("[INFO] 开始redis持久化同步");
@@ -130,7 +147,6 @@ public class RedisVoteUtil {
 //        String bufferKey = currentBuffer.get().equals("A")?VoteOptionalHash: VoteOptionalBufferHashScore;
 //        String nextBuffer = processingBuffer.equals("A") ? "B" : "A";
 //        currentBuffer.set(nextBuffer);
-        acquireLock(RedisVoteUtil.LOCK);
         // 切换缓冲区
         // 等待一会后进行同步
 //        try {
@@ -148,8 +164,6 @@ public class RedisVoteUtil {
             redisTemplate.opsForHash().put(VoteOptionalHashCount, field, "0");
             redisTemplate.opsForHash().put(VoteOptionHashScore, field, "0");
         }
-
-        releaseLock(RedisVoteUtil.LOCK);
 
         voteMap.forEach((optionId, voteCount) -> {
             songInfoRepository.incrementVoteCount(Integer.parseInt(optionId.toString()),Double.parseDouble((String)scoreMap.get(optionId)) ,Integer.parseInt((String) voteCount));

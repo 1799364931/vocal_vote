@@ -22,12 +22,9 @@ public class User {
     private Integer id;
     @Column(name = "nick_name" ,unique = true,nullable = false)
     private String nickName;
-    @ManyToMany
-    @JoinTable(
-            name = "user_votes",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "song_id")
-    )
-    private List<SongInfo> votedSongs;
+
+    @OneToMany(mappedBy = "user")
+    private List<UserVote> votes;
+
 
 }

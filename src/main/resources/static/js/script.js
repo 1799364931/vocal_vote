@@ -1,5 +1,5 @@
 
-const HOST = "localhost:721"
+const HOST = "124.223.95.23:721"
 
 const API_URL = "http://"+ HOST + "/rank-vote/api/get-vote-optionals";
 const SUBMIT_URL = "http://"+ HOST + "/rank-vote/api/commit-rank-vote";
@@ -54,7 +54,7 @@ function renderSongsPage(page) {
         title.textContent = `${song.song_name}`;
 
         const info = document.createElement("div");
-        info.innerHTML = `${song.game_name} (${song.year})<br/>得分：${(parseFloat(song.score)*100).toFixed(1) }，投票数：${song.vote_count}`;
+        info.innerHTML = `${song.game_name} (${song.year})<br/>得分：${(parseFloat(song.score)*100).toFixed(2) }，投票数：${song.vote_count}`;
 
         const iframe = document.createElement("iframe");
         iframe.src = `http://music.163.com/outchain/player?type=2&id=${song.iframe_url}&auto=0&height=66`;
@@ -219,7 +219,7 @@ async function submitVote() {
         rankVoteDto: {
             songIdRanks: voteList.map((songId, index) => ({
                 songId: songId,
-                rank: voteList.length - index // 排名：第1名是最高分，最后一首是最低分
+                rank: index + 1  // 按照索引来
             }))
         },
         userId: userId
